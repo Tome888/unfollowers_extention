@@ -1,6 +1,6 @@
-# InstaAudit Pro
+# Who Unfollowed
 
-**InstaAudit Pro** is a privacy-focused, lightweight Chrome Extension designed to help you analyze your Instagram connection loops. It automates the process of scanning your followers and following lists locally in your browser to instantly identify accounts that do not follow you back. 
+**Who Unfollowed** is a privacy-focused, lightweight Chrome Extension designed to help you analyze your Instagram connection loops. It automates the process of scanning your followers and following lists locally in your browser to instantly identify accounts that do not follow you back. 
 
 To bypass aggressive platform security systems, the extension utilizes an anti-rate-limit scrolling engine that mimics human behavior with variable pacing and cooldown breaks.
 
