@@ -139,7 +139,7 @@ function displayStatsModal(notFollowingBack, totalFollowers, totalFollowing) {
     backgroundColor: "#1c1c1e",
     border: "1px solid #2c2c2e",
     boxShadow: "0px 20px 40px rgba(0,0,0,0.5)",
-    borderRadius: "100px",
+    borderRadius: "25px",
     zIndex: "9999999",
     padding: "24px",
     fontFamily:
@@ -333,7 +333,7 @@ function injectInteractiveButton() {
     backgroundColor: "rgba(38, 38, 38, 0.75)",
     color: "#ffffff",
     border: "1px solid rgba(255, 255, 255, 0.15)",
-    borderRadius: "12px",
+    borderRadius: "100px",
     fontFamily: "-apple-system, BlinkMacSystemFont, sans-serif",
     fontSize: "13px",
     fontWeight: "600",
