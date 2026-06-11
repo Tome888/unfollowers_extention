@@ -109,17 +109,40 @@ async function autoScrollModal(currentStepText, basePercentage, stepWeight) {
 }
 
 function scrapeUsernames() {
-  const items = document.querySelectorAll(
-    "span._ap3a._aaco._aacw._aacx._aad7._aade",
-  );
-  const list = [];
-  items.forEach((el) => {
-    const name = el.textContent.trim();
-    if (name && !list.includes(name)) {
-      list.push(name);
+  const links = document.querySelectorAll('div[role="dialog"] a[role="link"]');
+  const uniqueNames = new Set();
+
+  links.forEach((el) => {
+    const href = el.getAttribute("href");
+    if (href && href.split("/").filter(Boolean).length === 1) {
+      const clone = el.cloneNode(true);
+
+      const svgs = clone.querySelectorAll("svg");
+      svgs.forEach((svg) => svg.remove());
+
+      const name = clone.textContent.trim();
+      if (name && !name.includes("\n") && name.length > 0) {
+        uniqueNames.add(name);
+      }
     }
   });
-  return list;
+
+  if (uniqueNames.size === 0) {
+    const items = document.querySelectorAll(
+      "span._ap3a._aaco._aacw._aacx._aad7._aade",
+    );
+    items.forEach((el) => {
+      const clone = el.cloneNode(true);
+
+      const svgs = clone.querySelectorAll("svg");
+      svgs.forEach((svg) => svg.remove());
+
+      const name = clone.textContent.trim();
+      if (name) uniqueNames.add(name);
+    });
+  }
+
+  return Array.from(uniqueNames);
 }
 
 function displayStatsModal(notFollowingBack, totalFollowers, totalFollowing) {
@@ -179,7 +202,7 @@ function displayStatsModal(notFollowingBack, totalFollowers, totalFollowing) {
         <div style="font-size: 20px; font-weight: 700; margin-top: 4px; color: #bf5af2;">${totalFollowing}</div>
       </div>
       <div style="background: rgba(255, 69, 58, 0.15); border: 1px solid rgba(255, 69, 58, 0.2); padding: 12px; border-radius: 12px; text-align: center;">
-        <div style="font-size: 11px; color: #ff453a; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">Lost Followers</div>
+        <div style="font-size: 11px; color: #ff453a; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">Not Following Back</div>
         <div style="font-size: 20px; font-weight: 700; margin-top: 4px; color: #ff453a;">${notFollowingBack.length}</div>
       </div>
     </div>
@@ -291,8 +314,9 @@ async function startScript() {
     await delay(1000);
   }
 
+  const followersSet = new Set(arrNameFollowers);
   const namesNotInFollowers = arrNameOfFollowing.filter(
-    (name) => !arrNameFollowers.includes(name),
+    (name) => !followersSet.has(name),
   );
 
   updateProgress("Done! 🎉", 100);
