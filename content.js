@@ -3,6 +3,9 @@ const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 const randomRange = (min, max) =>
   Math.floor(Math.random() * (max - min + 1)) + min;
 
+let isScriptRunning = false;
+let modalObserver = null;
+
 function simulateHumanClick(element) {
   const target = element.querySelector("span") || element;
   const events = ["pointerdown", "mousedown", "pointerup", "mouseup", "click"];
@@ -19,7 +22,7 @@ function simulateHumanClick(element) {
 
 function updateProgress(stepText, percentage) {
   const button = document.getElementById("custom-extension-btn");
-  if (!button) return;
+  if (!button || button.style.display === "none") return;
 
   button.style.pointerEvents = "none";
   button.style.cursor = "wait";
@@ -37,11 +40,14 @@ function updateProgress(stepText, percentage) {
 }
 
 function resetProgressButton() {
+  isScriptRunning = false;
+  stopModalMonitoring();
+
   const button = document.getElementById("custom-extension-btn");
-  if (!button) return;
+  if (!button || button.style.display === "none") return;
 
   button.style.pointerEvents = "auto";
-  button.style.cursor = "pointer";
+  button.style.cursor = "move";
   button.style.backgroundColor = "rgba(38, 38, 38, 0.75)";
   button.style.borderColor = "rgba(255, 255, 255, 0.15)";
 
@@ -51,16 +57,47 @@ function resetProgressButton() {
   `;
 }
 
-async function autoScrollModal(currentStepText, basePercentage, stepWeight) {
+function getModalContainer() {
   let scrollDiv = document.querySelector(
     ".x6nl9eh.x1a5l9x9.x7vuprf.x1mg3h75.x1lliihq.x1iyjqo2.xs83m0k.xz65tgg.x1rife3k.x1n2onr6",
   );
-
   if (!scrollDiv) {
     scrollDiv =
       document.querySelector('div[role="dialog"] .xyb0qn5') ||
       document.querySelector('div[role="dialog"] ul')?.parentElement;
   }
+  return scrollDiv;
+}
+
+function startModalMonitoring() {
+  stopModalMonitoring();
+
+  modalObserver = new MutationObserver(() => {
+    if (isScriptRunning && !getModalContainer()) {
+      console.log(
+        "User closed the modal connection or left context. Aborting automation.",
+      );
+      isScriptRunning = false;
+      stopModalMonitoring();
+      resetProgressButton();
+    }
+  });
+
+  modalObserver.observe(document.body, {
+    childList: true,
+    subtree: true,
+  });
+}
+
+function stopModalMonitoring() {
+  if (modalObserver) {
+    modalObserver.disconnect();
+    modalObserver = null;
+  }
+}
+
+async function autoScrollModal(currentStepText, basePercentage, stepWeight) {
+  const scrollDiv = getModalContainer();
 
   if (!scrollDiv) {
     console.log("Scrollable container layout missing.");
@@ -74,8 +111,9 @@ async function autoScrollModal(currentStepText, basePercentage, stepWeight) {
   const MaxPlateauChecks = 24;
 
   while (noChangeCount < MaxPlateauChecks) {
-    scrollAttempts++;
+    if (!isScriptRunning) return;
 
+    scrollAttempts++;
     scrollDiv.scrollTop = scrollDiv.scrollHeight;
 
     const scrollProgress = Math.min(
@@ -87,14 +125,17 @@ async function autoScrollModal(currentStepText, basePercentage, stepWeight) {
     updateProgress(currentStepText, dynamicPercentage);
 
     await delay(randomRange(1200, 2000));
+    if (!isScriptRunning) return;
 
     if (scrollAttempts % 8 === 0) {
       updateProgress("System cooling...", dynamicPercentage);
       await delay(randomRange(2500, 3500));
+      if (!isScriptRunning) return;
     }
 
     scrollDiv.scrollTop = scrollDiv.scrollHeight - randomRange(100, 180);
     await delay(150);
+    if (!isScriptRunning) return;
     scrollDiv.scrollTop = scrollDiv.scrollHeight;
 
     let currentHeight = scrollDiv.scrollHeight;
@@ -232,6 +273,7 @@ function displayStatsModal(notFollowingBack, totalFollowers, totalFollowing) {
 
 async function startScript() {
   console.log("Starting automated sync operation...");
+  isScriptRunning = true;
 
   updateProgress("[1/4] Opening Followers...", 5);
 
@@ -251,15 +293,21 @@ async function startScript() {
 
   simulateHumanClick(followersTab);
   await delay(3000);
+  if (!isScriptRunning) return;
+
+  startModalMonitoring();
 
   updateProgress("[1/4] Scanning Followers...", 10);
   await autoScrollModal("[1/4] Scanning Followers...", 10, 35);
+  if (!isScriptRunning) return;
 
   updateProgress("[1/4] Compiling List...", 45);
   const arrNameFollowers = scrapeUsernames();
   console.log(`Successfully scraped ${arrNameFollowers.length} followers.`);
 
   updateProgress("[2/4] Switching Context...", 48);
+
+  stopModalMonitoring();
   const closeButton =
     document
       .querySelector('button svg[aria-label="Close"]')
@@ -275,6 +323,7 @@ async function startScript() {
     if (overlay) simulateHumanClick(overlay);
     await delay(3000);
   }
+  if (!isScriptRunning) return;
 
   updateProgress("[3/4] Opening Following...", 52);
   const followingTab = Array.from(
@@ -293,9 +342,13 @@ async function startScript() {
 
   simulateHumanClick(followingTab);
   await delay(3000);
+  if (!isScriptRunning) return;
+
+  startModalMonitoring();
 
   updateProgress("[3/4] Scanning Following...", 55);
   await autoScrollModal("[3/4] Scanning Following...", 55, 35);
+  if (!isScriptRunning) return;
 
   updateProgress("[3/4] Compiling List...", 90);
   const arrNameOfFollowing = scrapeUsernames();
@@ -304,6 +357,7 @@ async function startScript() {
   );
 
   updateProgress("[4/4] Finalizing Analysis...", 93);
+  stopModalMonitoring();
   const closeButtonFollowing =
     document
       .querySelector('button svg[aria-label="Close"]')
@@ -334,26 +388,81 @@ async function startScript() {
   resetProgressButton();
 }
 
+function makeElementDraggable(element) {
+  let pos1 = 0,
+    pos2 = 0,
+    pos3 = 0,
+    pos4 = 0;
+  let isDragging = false;
+
+  element.addEventListener("mousedown", dragMouseDown);
+
+  function dragMouseDown(e) {
+    e.preventDefault();
+    pos3 = e.clientX;
+    pos4 = e.clientY;
+    isDragging = false;
+
+    document.addEventListener("mouseup", closeDragElement);
+    document.addEventListener("mousemove", elementDrag);
+  }
+
+  function elementDrag(e) {
+    e.preventDefault();
+    isDragging = true;
+    pos1 = pos3 - e.clientX;
+    pos2 = pos4 - e.clientY;
+    pos3 = e.clientX;
+    pos4 = e.clientY;
+
+    let newTop = element.offsetTop - pos2;
+    let newLeft = element.offsetLeft - pos1;
+
+    const maxLeft = window.innerWidth - element.offsetWidth - 10;
+    const maxTop = window.innerHeight - element.offsetHeight - 10;
+
+    if (newLeft < 10) newLeft = 10;
+    if (newLeft > maxLeft) newLeft = maxLeft;
+    if (newTop < 10) newTop = 10;
+    if (newTop > maxTop) newTop = maxTop;
+
+    element.style.top = `${newTop}px`;
+    element.style.left = `${newLeft}px`;
+    element.style.right = "auto";
+  }
+
+  function closeDragElement(e) {
+    document.removeEventListener("mouseup", closeDragElement);
+    document.removeEventListener("mousemove", elementDrag);
+  }
+
+  return {
+    wasDragged: () => isDragging,
+  };
+}
+
 function injectInteractiveButton() {
   if (document.getElementById("custom-extension-btn")) return;
 
   const button = document.createElement("button");
   button.id = "custom-extension-btn";
+
   button.innerHTML = `
     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 8px; display: inline-block; vertical-align: middle;"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/></svg>
     <span style="display: inline-block; vertical-align: middle;">Find who unfollowed</span>
   `;
 
+  const defaultInitialLeft = window.innerWidth - 220;
+
   Object.assign(button.style, {
     position: "fixed",
     top: "24px",
-    right: "24px",
-    width: "auto",
-    height: "auto",
-    maxHeight: "46px",
+    left: `${defaultInitialLeft}px`,
+    width: "200px",
+    height: "46px",
     boxSizing: "border-box",
     zIndex: "999999",
-    padding: "12px 20px",
+    padding: "12px 16px",
     backgroundColor: "rgba(38, 38, 38, 0.75)",
     color: "#ffffff",
     border: "1px solid rgba(255, 255, 255, 0.15)",
@@ -365,8 +474,14 @@ function injectInteractiveButton() {
     boxShadow: "0 8px 32px 0 rgba(0, 0, 0, 0.37)",
     backdropFilter: "blur(12px)",
     webkitBackdropFilter: "blur(12px)",
-    transition: "all 0.2s cubic-bezier(0.4, 0, 0.2, 1)",
+    transition:
+      "transform 0.2s cubic-bezier(0.4, 0, 0.2, 1), background-color 0.2s, border-color 0.2s, box-shadow 0.2s",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
   });
+
+  const dragTracker = makeElementDraggable(button);
 
   button.addEventListener("mouseenter", () => {
     if (button.style.pointerEvents === "none") return;
@@ -384,7 +499,11 @@ function injectInteractiveButton() {
     button.style.boxShadow = "0 8px 32px 0 rgba(0, 0, 0, 0.37)";
   });
 
-  button.addEventListener("click", () => startScript());
+  button.addEventListener("click", (e) => {
+    if (dragTracker.wasDragged()) return;
+    if (button.style.pointerEvents === "none") return;
+    startScript();
+  });
 
   document.body.appendChild(button);
 }
