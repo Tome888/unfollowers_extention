@@ -456,7 +456,7 @@ function injectInteractiveButton() {
 
   Object.assign(button.style, {
     position: "fixed",
-    top: "24px",
+    top: "94px",
     left: `${defaultInitialLeft}px`,
     width: "200px",
     height: "46px",
